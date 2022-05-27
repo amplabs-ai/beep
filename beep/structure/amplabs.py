@@ -53,7 +53,7 @@ class AmpLabsDatapath(BEEPDatapath):
 
     @classmethod
     def get_amplabs_dataset(cls, dataset):
-        url = "https://www.amplabs.ai/download/cells/cycle_data_json?cell_id={}".format(cell_id)
+        url = "https://www.amplabs.ai/download/cells/cycle_data_json?cell_id={}".format(dataset)
         user = "public@amplabs.ai"
         httprequest = urllib.request.Request(
             url, method="GET"
