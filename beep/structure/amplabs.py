@@ -51,13 +51,22 @@ class AmpLabsDatapath(BEEPDatapath):
         "date_time": "float32",
     }
 
-    FILE_PATTERN = ".*timeseries\\.csv"
-
     @classmethod
-    def from_api(cls):
-        # API Logic to fetch public data
-        # load data into dataframe
-        raise NotImplementedError
+    def get_amplabs_dataset(cls, dataset):
+        url = "https://www.amplabs.ai/download/cells/cycle_data_json?cell_id={}".format(cell_id)
+        user = "public@amplabs.ai"
+        httprequest = urllib.request.Request(
+            url, method="GET"
+        )
+        httprequest.add_header("Cookie", f"userId={user}")
+
+        try:
+            with urllib.request.urlopen(httprequest) as httpresponse:
+                response = json.loads(httpresponse.read())
+                return pd.DataFrame(response['records'])
+        except urllib.error.HTTPError as e:
+            print(e)
+        return None
 
     @classmethod
     def from_file(cls, path):
