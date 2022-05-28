@@ -2,6 +2,8 @@
 
 """
 import os
+import urllib
+import json
 from datetime import datetime
 
 import pytz
@@ -22,16 +24,15 @@ class AmpLabsDatapath(BEEPDatapath):
 
     # Mapping of raw data file columns to BEEP columns
     COLUMN_MAPPING = {
-        "test_time (s)": "test_time",
-        "cycle_index": "cycle_index",
-        "current (a)": "current",
-        "voltage (v)": "voltage",
-        "charge_capacity (ah)": "charge_capacity",
-        "discharge_capacity (ah)": "discharge_capacity",
-        "charge_energy (wh)": "charge_energy",
-        "discharge_energy (wh)": "discharge_energy",
-        "cell_temperature (c)": "temperature",
-        "date_time": "date_time"
+        "Test_Time (s)": "test_time",
+        "Cycle_Index": "cycle_index",
+        "Current (a)": "current",
+        "Voltage (v)": "voltage",
+        "Charge_Capacity (ah)": "charge_capacity",
+        "Discharge_Capacity (ah)": "discharge_capacity",
+        "Charge_Energy (wh)": "charge_energy",
+        "Discharge_Energy (wh)": "discharge_energy",
+        "Cell_Temperature (c)": "temperature"
     }
 
     # Columns to ignore
@@ -50,10 +51,14 @@ class AmpLabsDatapath(BEEPDatapath):
         "temperature": "float32",
         "date_time": "float32",
     }
+    @classmethod
+    def from_amplabs(cls, dataset):
+        df = AmpLabsDatapath.get_amplabs_dataset(dataset)
+        return AmpLabsDatapath.from_df(df)
 
     @classmethod
     def get_amplabs_dataset(cls, dataset):
-        url = "https://www.amplabs.ai/download/cells/cycle_data_json?cell_id={}".format(dataset)
+        url = "https://www.amplabs.ai/download/cells/cycle_timeseries_json?cell_id={}".format(dataset)
         user = "public@amplabs.ai"
         httprequest = urllib.request.Request(
             url, method="GET"
@@ -93,29 +98,25 @@ class AmpLabsDatapath(BEEPDatapath):
             (AmpLabsDatapath)
         """
 
-        df.rename(str.lower, axis="columns", inplace=true)
-        df.drop(columns=[c for c in cls.columns_ignore if c in df.columns], inplace=true)
+        df.rename(columns=cls.COLUMN_MAPPING, inplace=True)
+        df.rename(str.lower, axis="columns", inplace=True)
+        df.drop(columns=[c for c in cls.COLUMNS_IGNORE if c in df.columns], inplace=True)
         df["step_index"] = df['cycle_index']
-        df["step_time"] = df["cycle_time"]
-
-        df.rename(columns=cls.column_mapping, inplace=true)
-        dtfmt = '%y-%m-%d %h:%m:%s.%f'
-        # convert date time string to
+        df["step_time"] = df['test_time'] # Need to update with cycle_time
+        dtfmt = '%Y-%m-%dT%H:%M:%S.%fZ'
         dts = df["date_time"].apply(lambda x: datetime.strptime(x, dtfmt))
-
         df["date_time"] = dts.apply(lambda x: x.timestamp())
-        df["date_time_iso"] = dts.apply(lambda x: x.replace(tzinfo=pytz.utc).isoformat())
+        df["date_time_iso"] = dts.apply(lambda x: x.isoformat())
 
-        for column, dtype in cls.data_types.items():
+        for column, dtype in cls.DATA_TYPES.items():
             if column in df:
                 if not df[column].isnull().values.any():
                     df[column] = df[column].astype(dtype)
 
         paths = {
-            "raw": os.path.abspath(path),
-            "metadata": none
+            "raw": None,
+            "metadata": None
         }
-
         # there is no metadata given in the ba files
         metadata = {}
 
